@@ -14,20 +14,10 @@ Module.register('MMM-SystemStats', {
     animationSpeed: 0,
     align: 'right',
     language: config.language,
-    units: config.units,
     useSyslog: false,
-    thresholdCPUTemp: 75, // in configured units
     baseURLSyslog: 'http://127.0.0.1:8080/syslog',
     label: 'textAndIcon'
   },
-  // Define required styles.
-  getStyles: function() {
-    return ["font-awesome.css"];
-  },
-  // Define required scripts.
-	getScripts: function () {
-      return ["moment.js", "moment-duration-format.js"];
-	},
 
   // Define required translations.
 	getTranslations: function() {
@@ -43,8 +33,6 @@ Module.register('MMM-SystemStats', {
   start: function() {
     Log.log('Starting module: ' + this.name);
 
-    // set locale
-    moment.locale(this.config.language);
 
     this.stats = {};
     this.stats.cpuTemp = this.translate('LOADING').toLowerCase();
@@ -63,16 +51,19 @@ Module.register('MMM-SystemStats', {
       //console.log("this.config.useSyslog-" + this.config.useSyslog + ', this.stats.cpuTemp-'+parseInt(this.stats.cpuTemp)+', this.config.thresholdCPUTemp-'+this.config.thresholdCPUTemp);
       if (this.config.useSyslog) {
         var cpuTemp = Math.ceil(parseFloat(this.stats.cpuTemp));
-        //console.log('before compare (' + cpuTemp + '/' + this.config.thresholdCPUTemp + ')');
-        if (cpuTemp > this.config.thresholdCPUTemp) {
-          console.log('alert for threshold violation (' + cpuTemp + '/' + this.config.thresholdCPUTemp + ')');
-          this.sendSocketNotification('ALERT', {config: this.config, type: 'WARNING', message: this.translate("TEMP_THRESHOLD_WARNING") + ' (' + this.stats.cpuTemp + '/' + this.config.thresholdCPUTemp + ')' });
-        }
       }
       this.stats.sysLoad = payload.sysLoad[0];
       this.stats.freeMem = Number(payload.freeMem).toFixed() + '%';
-      upTime = parseInt(payload.upTime[0]);
-      this.stats.upTime = moment.duration(upTime, "seconds").humanize();
+      var p_upTime = parseInt(payload.upTime[0]);
+      var d = Math.floor(p_upTime / (3600*24));
+      var h = Math.floor(p_upTime % (3600*24) / 3600);
+      var m = Math.floor(p_upTime % 3600 /60);
+      var dDisplay = d > 0 ? d + (d == 1 ? " jour " : " jours ") : "";
+      var hDisplay = h > 0 ? h + (h == 1 ? " heure, " : " heures ") : "";
+      var mDisplay = m > 0 ? m + (m == 1 ? " minute, " : " minutes ") : "";
+
+	this.stats.upTime = d > 0 ? dDisplay + hDisplay : hDisplay + mDisplay;
+
       this.stats.freeSpace = payload.freeSpace;
       this.updateDom(this.config.animationSpeed);
     }
@@ -119,7 +110,7 @@ Module.register('MMM-SystemStats', {
 
       if (self.config.label.match(/^(icon|textAndIcon)$/)) {
         var c2 = document.createElement('td');
-        c2.innerHTML = `<i class="fa ${sysData[item].icon} fa-fw"></i>`;
+        c2.innerHTML = `<i class="fa ${sysData[item].icon}" style="margin-right: 4px;"></i>`;
         row.appendChild(c2);
       }
 
